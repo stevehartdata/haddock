@@ -4,7 +4,8 @@ name: CI
 on:
   pull_request:
   push:
-    branches: ["ghc-9.2"]
+    branches: ["master"]
+  workflow_dispatch:
 
 jobs:
   cabal:
@@ -19,7 +20,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-      if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/ghc-9.2'
 
     - uses: haskell/actions/setup@v1
       id: setup-haskell-cabal
@@ -45,8 +45,21 @@ jobs:
 
     - name: Build
       run: |
-        cabal configure --enable-tests --enable-benchmarks --test-show-details=direct
+        cabal configure --enable-tests --enable-benchmarks --test-show-details=streaming
         cabal build all
 
+    - name: Make test output directory
+      id: make-test-output-dir
+      run: |
+        mkdir -p ${{ github.workspace }}/test-output
+
     - name: Test
-      run: cabal test all
+      run: cabal test haddock:tests --test-log='${{ github.workspace }}/test-output/$pkgid-$compiler-$os-$arch-$test-suite-$result.txt' --test-options='--haddock-stdout ${{ github.workspace }}/test-output/haddock-output-$pkgid-$compiler-$os-$arch-$test-suite.txt'
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      if: always() && steps.make-test-output-dir.conclusion == 'success'
+      with:
+        name: test-output
+        path: ${{ github.workspace }}/test-output/
+
