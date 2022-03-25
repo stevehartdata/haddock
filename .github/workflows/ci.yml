@@ -61,7 +61,7 @@ jobs:
         mkdir -p ${{ github.workspace }}/test-output
 
     - name: Test
-      run: cabal test haddock:tests --test-log='${{ github.workspace }}/test-output/$pkgid-$compiler-$os-$arch-$test-suite-$result.txt' --test-options='--haddock-stdout ${{ github.workspace }}/test-output/haddock-output-$pkgid-$compiler-$os-$arch-$test-suite.txt'
+      run: cabal test all --test-log='${{ github.workspace }}/test-output/$pkgid-$compiler-$os-$arch-$test-suite-$result.txt'
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
