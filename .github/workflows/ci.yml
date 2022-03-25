@@ -52,8 +52,21 @@ jobs:
 
     - name: Build
       run: |
-        cabal configure --enable-tests --enable-benchmarks --test-show-details=direct
+        cabal configure --enable-tests --enable-benchmarks --test-show-details=streaming
         cabal build all
 
+    - name: Make test output directory
+      id: make-test-output-dir
+      run: |
+        mkdir -p ${{ github.workspace }}/test-output
+
     - name: Test
-      run: cabal test all
+      run: cabal test all --test-log='${{ github.workspace }}/test-output/$pkgid-$compiler-$os-$arch-$test-suite-$result.txt'
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      if: always() && steps.make-test-output-dir.conclusion == 'success'
+      with:
+        name: test-output
+        path: ${{ github.workspace }}/test-output/
+
