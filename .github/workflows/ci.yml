@@ -37,7 +37,7 @@ jobs:
     - name: Reinstall GHC with docs
       run: |
         ghcup rm ghc ${{ matrix.ghc }}
-        ghcup install ghc ${{ maxtrix.ghc }}
+        ghcup install ghc ${{ matrix.ghc }}
 
     - name: Freeze
       run: |
