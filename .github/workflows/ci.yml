@@ -1,10 +1,9 @@
 name: CI
 
-# Trigger the workflow on push or pull request, but only for the master branch
 on:
   pull_request:
   push:
-    branches: ["ghc-8.10"]
+  workflow_dispatch:
 
 jobs:
   cabal:
@@ -13,37 +12,61 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        cabal: ["3.2"]
-        ghc:
-          - "8.10.3"
-          - "8.10.4"
+        cabal: ["3.6"]
+        ghc: ["8.10.1"]
 
     steps:
     - uses: actions/checkout@v2
-      if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/ghc-8.10'
 
-    - uses: actions/setup-haskell@v1.1.4
+    - uses: haskell/actions/setup@v1
       id: setup-haskell-cabal
       name: Setup Haskell
       with:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: ${{ matrix.cabal }}
 
+    # GitHub preinstalls recent GHC versions, and haskell/actions/setup uses the
+    # preinstalled version when possible. However, GitHub's preinstalled GHC does
+    # not include documentation, and we need documentation to run Haddock tests.
+    # Therefore, we reinstall GHC to ensure that we have the documentation we
+    # need.
+
+    # TODO: Only reinstall GHC when the docs are actually missing. (If we're
+    # using a GHC version that is not preinstalled by GitHub, then we will be
+    # using a GHC installed by ghcup, which should have documentation.)
+    - name: Reinstall GHC with docs
+      run: |
+        ghcup rm ghc ${{ matrix.ghc }}
+        ghcup install ghc ${{ matrix.ghc }}
+
     - name: Freeze
       run: |
         cabal freeze
-
-    - uses: actions/cache@v1
+ 
+    - uses: actions/cache@v2
       name: Cache ~/.cabal/store
       with:
-        path: ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
+        path: |
+          ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
         key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
 
     - name: Build
       run: |
-        cabal configure --enable-tests --enable-benchmarks --test-show-details=direct
+        cabal configure --enable-tests --enable-benchmarks --test-show-details=streaming
         cabal build all
 
-    - name: Test
+    - name: Make test output directory
+      id: make-test-output-dir
       run: |
-        cabal test all
+        mkdir -p ${{ github.workspace }}/test-output
+
+    - name: Test
+      run: cabal test all --test-log='${{ github.workspace }}/test-output/$pkgid-$compiler-$os-$arch-$test-suite-$result.txt'
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      if: always() && steps.make-test-output-dir.conclusion == 'success'
+      with:
+        name: test-output
+        path: ${{ github.workspace }}/test-output/
+
