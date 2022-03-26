@@ -13,7 +13,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         cabal: ["3.6"]
-        ghc: ["8.10.1"]
+        ghc: ["8.10.1", "8.10.2", "8.10.3", "8.10.4", "8.10.5", "8.10.6", "8.10.7"]
 
     steps:
     - uses: actions/checkout@v2
